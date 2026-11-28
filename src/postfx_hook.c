@@ -249,6 +249,26 @@ static void FxFrame(void) {
     }
 }
 
+// On Windows on ARM (x86 emulation, e.g. Windows 11 ARM in Parallels) the inline detour on ClearDepthStencilView crashed with
+// C000001D in the first frame. There the vtable patch (the path used under Wine) is used instead.
+// POSTFX_FORCE_VTABLE: 0 = auto (vtable only on an ARM64 host), 1 = always vtable, -1 = never (always inline detour on native Windows).
+#ifndef POSTFX_FORCE_VTABLE
+#define POSTFX_FORCE_VTABLE 0
+#endif
+static int IsWine(void);
+static int IsArm64Host(void) {
+    typedef BOOL (WINAPI *IsWow64Process2_t)(HANDLE, USHORT*, USHORT*);
+    HMODULE k = GetModuleHandleA("kernel32.dll");
+    IsWow64Process2_t f = k ? (IsWow64Process2_t)GetProcAddress(k, "IsWow64Process2") : NULL;
+    USHORT proc = 0, native = 0;
+    if (!f || !f(GetCurrentProcess(), &proc, &native)) return 0;   // older Windows: not ARM
+    return native == 0xAA64;                                          // IMAGE_FILE_MACHINE_ARM64
+}
+static int UseVtablePatch(void) {
+    if (POSTFX_FORCE_VTABLE > 0) return 1;
+    if (POSTFX_FORCE_VTABLE < 0) return IsWine();
+    return IsWine() || IsArm64Host();
+}
 static int g_clearHooked = 0;
 static int IsWine(void) {
     HMODULE n = GetModuleHandleA("ntdll.dll");
@@ -260,7 +280,7 @@ static void HookClear(ID3D11DeviceContext* ctx) {
     g_clearHooked = 1;
     vt = *(void***)ctx;
     g_clearTarget = vt[VT_CLEAR_DSV];
-    if (!IsWine()) {
+    if (!UseVtablePatch()) {
         // native Windows: the D3D11 runtime rewrites the context's method table while the game runs, so a vtable patch
         // only survives the first frames. Detour the function itself instead.
         int r;
