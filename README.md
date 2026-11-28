@@ -58,6 +58,10 @@ Close Condor first.
 Then start Condor as usual. The installer copies `d3dx.dll`, `c3helper.exe`, the `postfx` folder and the shaders, and keeps your own
 `lut.cube`, `tune.txt` and `agstream.txt` if they already exist (so updating keeps your settings).
 
+**Without the improved shaders:** add `--no-shaders` (for example `scripts\postfx.bat install "C:\Condor3" --no-shaders`) to install
+only the mod and the picture effects. The improved terrain/sky/cloud shaders are then neither needed nor copied, and the game keeps its
+own. Shaders from an earlier install stay in place until you uninstall.
+
 **Update:** install the new package over the old one the same way.
 **Uninstall:** `scripts\postfx.bat uninstall "C:\Condor3"` / `scripts/postfx.sh uninstall ~/Condor3`. This puts the original
 `d3dx.dll` back and removes `postfx`, `Effects\fx` and `c3helper.exe` (your settings in `postfx` are deleted too).
@@ -71,10 +75,21 @@ Then start Condor as usual. The installer copies `d3dx.dll`, `c3helper.exe`, the
        ln -s /mnt/c/Condor3 ~/Condor3               # once; the shader build expects the game in ~/Condor3
        python3 shaders/build_shaders.py build       # patched game shaders -> shaders/build/Effects/fx
 
+   `build_docker.sh` passes further arguments on to cmake, which is how you switch the optional parts of `d3dx.dll` off
+   (`ENABLE_POSTFX`, `ENABLE_AGSTREAM`, `ENABLE_HANGAR_PREVIEW_FIX`, `ENABLE_MOVE_PATCHES`; see `CMakeLists.txt` for the defaults):
+
+       scripts/build_docker.sh Release -DENABLE_POSTFX=OFF -DENABLE_AGSTREAM=OFF
+       scripts/build_docker.sh -DENABLE_POSTFX=OFF          # build type left out = Release
+
+   cmake remembers these values in `build/`, so to go back to a default pass it explicitly (`-DENABLE_POSTFX=ON`). If you do not
+   want the improved shaders, skip the `build_shaders.py` line and install with `--no-shaders` (step 3).
+
    (VS Code with the "Dev Containers" extension and "Reopen in Container" is only for editing with the same tools; build from WSL.)
 3. Close Condor and install from a Windows command prompt opened in the repository folder:
 
        scripts\postfx.bat install "C:\Condor3"
+
+   (add `--no-shaders` if you did not build the shaders)
 
 If something does not work, ask Claude (or another AI assistant) with the error message first, before opening an issue.
 

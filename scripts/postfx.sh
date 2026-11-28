@@ -5,8 +5,14 @@
 #   scripts/postfx.sh uninstall   restores the backed-up d3dx.dll and removes <game>/postfx, <game>/Effects/fx, c3helper.exe
 #   scripts/postfx.sh sync        copies only postfx.hlsl (the running game hot-reloads it)
 # Game folder (the one with Condor.exe): second argument, else $CONDOR_DIR, else ~/Condor3.
+# Flag (anywhere in the arguments):
+#   --no-shaders                  install without the patched game shaders: they are not needed (and not copied, even if built);
+#                                 the game keeps its own shaders. Shaders from an earlier install are left in place (uninstall removes them).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+NOSHADERS=0; ARGS=()
+for a in "$@"; do case "$a" in --no-shaders) NOSHADERS=1 ;; *) ARGS+=("$a") ;; esac; done
+set -- ${ARGS[@]+"${ARGS[@]}"}
 GAME="${2:-${CONDOR_DIR:-$HOME/Condor3}}"
 case "${1:-}" in install|uninstall|sync) [ -f "$GAME/Condor.exe" ] || { echo "$GAME does not contain Condor.exe: $0 ${1} /path/to/Condor3"; exit 1; } ;; esac
 REAL="$GAME/real_d3dx.dll"            # the mod forwards all d3dx calls to this (the game's original d3dx.dll)
@@ -31,7 +37,8 @@ case "${1:-}" in
       if [ -f "$ROOT/postfx/user/lut.cube" ]; then cp "$ROOT/postfx/user/lut.cube" "$GAME/postfx/lut.cube"; else cp "$ROOT/postfx/default_lut/lut.cube" "$GAME/postfx/lut.cube"; fi
     fi
     [ -f "$ROOT/postfx/user/tune.txt" ] && [ ! -f "$GAME/postfx/tune.txt" ] && cp "$ROOT/postfx/user/tune.txt" "$GAME/postfx/tune.txt"
-    if ls "$ROOT"/shaders/build/Effects/fx/*.fx >/dev/null 2>&1; then
+    if [ "$NOSHADERS" = 1 ]; then echo "Shaders: skipped (--no-shaders), the game's own shaders stay"
+    elif ls "$ROOT"/shaders/build/Effects/fx/*.fx >/dev/null 2>&1; then
       mkdir -p "$GAME/Effects/fx"; cp "$ROOT"/shaders/build/Effects/fx/*.fx "$GAME/Effects/fx/"; echo "Shaders: Effects/fx installed"
     else echo "Note: shaders/build/Effects/fx not found (python3 shaders/build_shaders.py build): the game's own shaders stay"; fi
     if [ -f "$ROOT/build/c3helper.exe" ]; then cp "$ROOT/build/c3helper.exe" "$GAME/c3helper.exe"; echo "Autogen streaming: c3helper.exe installed"
@@ -47,5 +54,5 @@ case "${1:-}" in
     echo "Restored the previous d3dx.dll, removed $GAME/postfx, $GAME/Effects/fx and c3helper.exe" ;;
   sync)
     cp "$ROOT/postfx/postfx.hlsl" "$GAME/postfx/" && echo "postfx.hlsl copied" ;;
-  *) echo "usage: $0 install|uninstall|sync [/path/to/Condor3]"; exit 2 ;;
+  *) echo "usage: $0 install|uninstall|sync [/path/to/Condor3] [--no-shaders]"; exit 2 ;;
 esac
