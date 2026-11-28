@@ -42,14 +42,23 @@ unpacked folder once: `xattr -dr com.apple.quarantine <folder>`.
        cp ./ntdll.so /Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-unix/ntdll.so
        sudo xattr -cr /Applications/CrossOver.app
 
-4. Point the bottle at the loader: open `~/Library/Application Support/CrossOver/Bottles/Condor3/cxbottle.conf` and add at the
+4. **Sign CrossOver again, locally.** With its signature removed, CrossOver no longer starts at all, and the patched `ntdll.so`
+   has changed the app, so it needs at least a local (ad-hoc) signature:
+
+       sudo codesign --force --deep --sign - /Applications/CrossOver.app
+
+5. Point the bottle at the loader: open `~/Library/Application Support/CrossOver/Bottles/Condor3/cxbottle.conf` and add at the
    bottom of the `[EnvironmentVariables]` section (use your own path):
 
        "ROSETTA_X87_PATH" = "/Users/<you>/rosettax87/runtime_loader"
 
-### 3. DXMT 0.80
-The standard "builtin" DXMT build did not work here, so use this precompiled non-builtin build:
-[dxmt-v0.80-notbuiltin.zip](https://github.com/trueToastedCode/dxmt/releases/download/v0.80/dxmt-v0.80-notbuiltin.zip).
+6. **Allow `runtime_loader` in the privacy settings.** macOS blocks it the first time it is used. Open **System Settings ->
+   Privacy & Security** and allow `runtime_loader` there (scroll down to the security
+   section and click *Allow Anyway* after the block message appeared). Without this, Condor does not start in the bottle.
+
+### 3. DXMT 0.80 (Condor 3 build)
+Use our DXMT build for Condor 3, not the upstream one: download the zip from the release
+[v0.80-condor3-r1](https://github.com/trueToastedCode/dxmt/releases/tag/v0.80-condor3-r1) (under *Assets*).
 
 Unpack it and run the included script (it backs up every file it replaces):
 
